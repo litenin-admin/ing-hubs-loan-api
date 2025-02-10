@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/create-scripts.sql
+  - include:
+      file: db/changelog/initial-data.sql
+  - include:
+      file: db/changelog/sample-data.sql

@@ -1,0 +1,40 @@
+server:
+  port: 8080
+  http2:
+    enabled: false
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: none
+      naming:
+        strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+  datasource:
+    jdbc-url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;INIT=CREATE;DB_CLOSE_ON_EXIT=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: password
+    hikari:
+      pool-name: HikariCP-dev
+      maximum-pool-size: 5
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: true
+  liquibase:
+    enabled: true
+    change-log: classpath:/db/changelog/db.changelog-master.yaml
+    drop-first: false
+
+loan:
+  min-interest-rate: 0.1
+  max-interest-rate: 0.5
+  discount-rate: 0.001
+  penalty-rate: 0.001
+  valid-installment-counts: [6, 9, 12, 24]
+
+logging:
+  level:
+    com.inghubs.loan: INFO
