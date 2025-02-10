@@ -140,16 +140,6 @@
 			<scope>test</scope>
 		</dependency>
 
-		<!--
-		<dependency>
-			<groupId>org.antlr</groupId>
-			<artifactId>antlr4-runtime</artifactId>
-			<version>4.9.3</version>
-			<scope>test</scope>
-		</dependency>
-		-->
-		<!-- mvn dependency:tree | grep antlr -->
-
 		<dependency>
 			<groupId>com.intuit.karate</groupId>
 			<artifactId>karate-core</artifactId>
