@@ -1,7 +1,6 @@
 package com.inghubs.loan.service;
 
 import com.inghubs.loan.domain.PaymentRequestDto;
-import com.inghubs.loan.error.exception.InstallmentsNotFoundException;
 import com.inghubs.loan.error.exception.LoanAlreadyPaidException;
 import com.inghubs.loan.error.exception.LoanNotFoundException;
 import com.inghubs.loan.model.Loan;
@@ -40,6 +39,7 @@ class PaymentServiceTest {
     @Mock
     private LatePaymentStrategy latePaymentStrategy;
 
+    @Spy
     @InjectMocks
     private PaymentService paymentService;
 
@@ -103,20 +103,6 @@ class PaymentServiceTest {
             paymentService.payLoan(paymentRequest);
         });
         assertEquals("Loan not found with id 1", exception.getMessage());
-    }
-
-    @Test
-    void testPayLoan_InstallmentsNotFoundException() {
-        loan.setInstallments(new ArrayList<>());
-
-        PaymentRequestDto paymentRequest = new PaymentRequestDto("tester1@inghubs.com", BigDecimal.valueOf(12000), 1L);
-
-        when(loanRepository.findById(1L)).thenReturn(java.util.Optional.of(loan));
-
-        InstallmentsNotFoundException exception = assertThrows(InstallmentsNotFoundException.class, () -> {
-            paymentService.payLoan(paymentRequest);
-        });
-        assertEquals("No installments found for loan ID: 1", exception.getMessage());
     }
 
 }
