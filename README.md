@@ -86,8 +86,8 @@ mvn test -Dtest=com.inghubs.loan.rules.PaymentValidatorTest
 
 API documentation is provided using **SpringDoc** and can be accessed via the following endpoint once the application is running:
 
-- **Swagger UI**: `http://localhost:8088/swagger-ui.html`
-- **OpenAPI Spec**: `http://localhost:8088/v3/api-docs`
+- **Swagger UI**: `http://localhost:8080/swagger-ui/index.html`
+- **OpenAPI Spec**: `http://localhost:8080/v3/api-docs`
 
 ## Authentication
 This application uses **Basic Authentication** for securing access to the API. Users must provide a username and password in the HTTP headers for each request.
