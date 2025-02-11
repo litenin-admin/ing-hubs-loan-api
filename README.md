@@ -11,6 +11,9 @@ It provides functionality for managing customer loans with interest rates, insta
 - [Running the Project](#running-the-project)
 - [Running Tests](#running-tests) 
 - [Accessing OpenAPI Documentation](#accessing-openapi-documentation)
+- [Authentication](#authentication)
+- [Test Users](#test-users)
+- [Custom Exceptions and Error Codes](#custom-exceptions-and-error-codes)
   
 ## Requirements
 
@@ -94,7 +97,6 @@ This application uses **Basic Authentication** for securing access to the API. U
 ```bash
 Authorization: Basic <Base64 encoded username:password>
 ```
-
 ### Test Users
 
 For testing purposes, use the following credentials:
@@ -102,46 +104,18 @@ For testing purposes, use the following credentials:
 - Username: tester1@inghubs.com, tester2@inghubs.com, tester3@inghubs.com
 - Password: admin
 
----
+## Custom Exceptions, Error Codes
 
-## Pay Loan Request
+The API uses structured error codes for different failure scenarios. Below is the list of error codes and their meanings:
 
-### Endpoint
-`POST /api/loans/pay`
-
-### Request Body Example
-```json
-{
-  "customerGuid": "tester1@inghubs.com",
-  "amount": 2200.00,
-  "loanId": 1
-}
-```
-
-### Request Parameters
-| Field           | Type    | Description |
-|----------------|--------|-------------|
-| `customerGuid` | String | Unique identifier for the customer (email format) |
-| `amount`       | Number | Payment amount towards the loan |
-| `loanId`       | Integer | Unique identifier of the loan being paid |
-
-### Response Example
-```json
-{
-  "data": {
-    "description": "Paid 1 installments. Total Paid: 2160.40. The loan is not yet fully paid.",
-    "installments": [
-      {
-        "id": 1,
-        "amount": 2200,
-        "paidAmount": 2160.4,
-        "dueDate": "2025-03-01T00:00:00",
-        "isPaid": true
-      }
-    ]
-  },
-  "error": null
-}
-```
-
----
+| Exception Class | Error Code | Description |
+|----------------|-----------|-------------|
+| `InsufficientCreditLimitException` | 1004 | Thrown when a customer does not have enough credit limit to take a loan. |
+| `CustomerNotFoundException` | 1003 | Thrown when the requested customer ID does not exist in the system. |
+| `InstallmentsNotFoundException` | 1002 | Thrown when no installments are found for the given loan ID. |
+| `InvalidInterestRateException` | 1006 | Thrown when the specified interest rate is outside the valid range (0.1 to 0.5). |
+| `InvalidInstallmentCountException` | 1005 | Thrown when the requested number of installments is not among the allowed values (6, 9, 12, 24). |
+| `PaymentAmountExceedsInstallmentsException` | 1007 | Thrown when the payment amount is greater than the total due for the last 3 months' installments. |
+| `LoanAlreadyPaidException` | 1008 | Thrown when a user tries to make a payment on a loan that has already been fully paid. |
+| `LoanNotFoundException` | 1001 | Thrown when no loan is found with the given loan ID. |
+| `InsufficientPaymentAmountException` | 1009 | Thrown when the payment amount is too low to cover any installments. |
