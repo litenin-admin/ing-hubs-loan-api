@@ -48,32 +48,26 @@ public class PaymentService {
         }
 
         // Retrieves the eligible installments for the loan
-        List<LoanInstallment> installments = getTargetInstallments(loan);
+        List<LoanInstallment> installments = getTargetInstallments(loan, source.amount());
 
         // Validate the payment amount against the installment rules
         paymentValidator.evaluate(installments, source.amount());
 
-        // Determine the number of installments that can be paid with the given amount
-        int payableCount = getPayableCount(source.amount(), installments.getFirst().getAmount());
+        List<LoanInstallment> paidInstallments = new ArrayList<>();
 
-        List<LoanInstallment> paidInstallments = installments.stream()
-                .limit(payableCount)
-                .map(target -> {
+        for (LoanInstallment target : installments) {
+            // Depending on whether the payment is early or late, apply the relevant strategy
+            if (now().isBefore(target.getDueDate())) {
+                earlyPaymentStrategy.processPayment(target);
+            } else {
+                latePaymentStrategy.processPayment(target);
+            }
+            // Decrease the customer's (*used*) credit limit by the paid amount
+            customerService.decreaseUsedCreditLimit(source.customerGuid(), target.getPaidAmount());
 
-                    // Depending on whether the payment is early or late,
-                    // the relevant payment strategy (early or late) is applied.
-                    if (now().isBefore(target.getDueDate())) {
-                        earlyPaymentStrategy.processPayment(target);
-                    } else {
-                        latePaymentStrategy.processPayment(target);
-                    }
-
-                    // Decrease the customer's (*used*) credit limit by the paid amount
-                    customerService.decreaseUsedCreditLimit(source.customerGuid(), target.getPaidAmount());
-
-                    return target;
-                })
-                .toList();
+            // Add the installment to the paid list
+            paidInstallments.add(target);
+        }
 
         // If the loan is fully paid, mark it as completed
         if (checkIfLoanFullyPaid(loan)) {
@@ -91,26 +85,51 @@ public class PaymentService {
         return amount.divide(installmentAmount, RoundingMode.DOWN).intValue();
     }
 
-    private List<LoanInstallment> getTargetInstallments(Loan loan) {
+    private List<LoanInstallment> getTargetInstallments(Loan loan, BigDecimal amount) {
+        // Determine the number of installments that can be paid with the given amount
+        int payableCount = getPayableCount(amount, loan.getInstallments().getFirst().getAmount());
 
-        // Determine the date range for eligible installments
-        var now = now();
-        var dateRangeEnd = getDueRangeEnd(now);
-        var dateRangeStart = getDueDateStart(now);
+        var processTime = now();
 
-        var installments =  loan.getInstallments()
+        var targetInstallments = new LinkedList<>(getOverdueInstallments(loan, now()));
+
+        if (targetInstallments.size() < payableCount) {
+            targetInstallments.addAll(getLateInstallments(loan, processTime));
+        }
+
+        if (CollectionUtils.isEmpty(targetInstallments)) {
+            throw new InstallmentsNotFoundException("No installments found for loan ID: " + loan.getId());
+        }
+
+        return targetInstallments.stream()
+                .limit(payableCount)
+                .toList();
+    }
+
+    private Set<LoanInstallment> getOverdueInstallments(Loan loan, LocalDateTime processTime) {
+
+        return loan.getInstallments()
                 .stream()
                 .filter(installment ->
-                        // Ensure installment is not already paid
+                        !installment.isPaid()
+                                // Check if it is overdue
+                                && installment.getDueDate().isBefore(processTime))
+                .collect(Collectors.toCollection(() ->
+                        new TreeSet<>(Comparator.comparing(LoanInstallment::getDueDate))
+                ));
+    }
+
+    private TreeSet<LoanInstallment> getLateInstallments(Loan loan, LocalDateTime processTime) {
+        var dateRangeEnd = getDueRangeEnd(processTime);
+        var dateRangeStart = getDueDateStart(processTime);
+
+        return loan.getInstallments()
+                .stream()
+                .filter(installment ->
                         !installment.isPaid()
                                 // Check if it falls in range
                                 && isInstallmentInRange(installment, dateRangeStart, dateRangeEnd))
                 .collect(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(LoanInstallment::getDueDate))));
-
-        if (CollectionUtils.isEmpty(installments)) {
-            throw new InstallmentsNotFoundException("No installments found for loan ID: " + loan.getId());
-        }
-        return new LinkedList<>(installments);
     }
 
     private boolean isInstallmentInRange(
