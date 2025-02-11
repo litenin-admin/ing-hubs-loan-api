@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.media.Content;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -41,7 +42,7 @@ public class LoanController {
             @RequestBody LoanRequestDto request
     ) {
         LoanDto result = loanFacade.createLoan(request);
-        return ResponseEntity.ok(new ResponsePayload<>(result));
+        return new ResponseEntity<>(new ResponsePayload<>(result), HttpStatus.CREATED);
     }
 
     @Operation(
@@ -63,7 +64,7 @@ public class LoanController {
             @RequestBody PaymentRequestDto request
     ) {
         PaymentDetailDto result = loanFacade.payLoan(request);
-        return ResponseEntity.ok(new ResponsePayload<>(result));
+        return new ResponseEntity<>(new ResponsePayload<>(result), HttpStatus.CREATED);
     }
 
     @Operation(
