@@ -10,11 +10,13 @@ import com.inghubs.loan.repository.LoanRepository;
 import com.inghubs.loan.rules.PaymentValidator;
 import com.inghubs.loan.service.strategy.EarlyPaymentStrategy;
 import com.inghubs.loan.service.strategy.LatePaymentStrategy;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -23,7 +25,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.inghubs.loan.utils.Dates.getDueRangeEnd;
-import static com.inghubs.loan.utils.Dates.getDueDateStart;
 import static com.inghubs.loan.utils.Dates.now;
 
 @Service
@@ -37,7 +38,7 @@ public class PaymentService {
     private final LatePaymentStrategy latePaymentStrategy;
     private final EarlyPaymentStrategy earlyPaymentStrategy;
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED, isolation = Isolation.SERIALIZABLE)
     public PaymentDetailDto payLoan(PaymentRequestDto source) {
 
         Loan loan = getLoanById(source.loanId());
@@ -86,16 +87,20 @@ public class PaymentService {
     }
 
     private List<LoanInstallment> getTargetInstallments(Loan loan, BigDecimal amount) {
+
         // Determine the number of installments that can be paid with the given amount
         int payableCount = getPayableCount(amount, loan.getInstallments().getFirst().getAmount());
 
         var processTime = now();
+        var dateRangeEnd = getDueRangeEnd(processTime);
 
-        var targetInstallments = new LinkedList<>(getOverdueInstallments(loan, now()));
-
-        if (targetInstallments.size() < payableCount) {
-            targetInstallments.addAll(getLateInstallments(loan, processTime));
-        }
+        var targetInstallments = loan.getInstallments()
+                .stream()
+                .filter(installment ->
+                        !installment.isPaid()
+                                // Check if it falls in range
+                                && isInstallmentInRange(installment, dateRangeEnd))
+                .collect(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(LoanInstallment::getDueDate))));
 
         if (CollectionUtils.isEmpty(targetInstallments)) {
             throw new InstallmentsNotFoundException("No installments found for loan ID: " + loan.getId());
@@ -106,37 +111,8 @@ public class PaymentService {
                 .toList();
     }
 
-    private Set<LoanInstallment> getOverdueInstallments(Loan loan, LocalDateTime processTime) {
-
-        return loan.getInstallments()
-                .stream()
-                .filter(installment ->
-                        !installment.isPaid()
-                                // Check if it is overdue
-                                && installment.getDueDate().isBefore(processTime))
-                .collect(Collectors.toCollection(() ->
-                        new TreeSet<>(Comparator.comparing(LoanInstallment::getDueDate))
-                ));
-    }
-
-    private TreeSet<LoanInstallment> getLateInstallments(Loan loan, LocalDateTime processTime) {
-        var dateRangeEnd = getDueRangeEnd(processTime);
-        var dateRangeStart = getDueDateStart(processTime);
-
-        return loan.getInstallments()
-                .stream()
-                .filter(installment ->
-                        !installment.isPaid()
-                                // Check if it falls in range
-                                && isInstallmentInRange(installment, dateRangeStart, dateRangeEnd))
-                .collect(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(LoanInstallment::getDueDate))));
-    }
-
-    private boolean isInstallmentInRange(
-            LoanInstallment installment,
-            LocalDateTime start,
-            LocalDateTime end) {
-        return installment.getDueDate().isAfter(start) && installment.getDueDate().isBefore(end);
+    private boolean isInstallmentInRange(LoanInstallment installment, LocalDateTime end) {
+        return installment.getDueDate().isBefore(end);
     }
 
     private boolean checkIfLoanFullyPaid(Loan loan) {
