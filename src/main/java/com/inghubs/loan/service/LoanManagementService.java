@@ -11,10 +11,12 @@ import com.inghubs.loan.rules.InstallmentCountValidator;
 import com.inghubs.loan.rules.InterestRateValidator;
 import com.inghubs.loan.service.strategy.LoanCalculationStrategy;
 import com.inghubs.loan.rules.CreditLimitValidator;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -58,7 +60,7 @@ public class LoanManagementService {
      * @throws RuntimeException if the customer is not found.
      * @throws IllegalArgumentException if any of the validations for credit limit, installment count, or interest rate fail.
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED, isolation = Isolation.SERIALIZABLE)
     public Loan createLoan(LoanRequestDto request) {
 
         Customer customer = customerService.findByGuid(request.customerGuid());
