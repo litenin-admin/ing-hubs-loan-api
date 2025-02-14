@@ -34,12 +34,6 @@ public final class Dates {
                 .toLocalDate().atTime(23, 59, 59);
     }
 
-    public static LocalDateTime getDueDateStart(LocalDateTime source) {
-        return source
-                .plusMonths(1).withDayOfMonth(1).minusDays(1)
-                .toLocalDate().atTime(23, 59, 59);
-    }
-
     public static LocalDateTime getInstallmentDueDate(int monthsToAdd) {
         return Dates.now()
                 .plusMonths(monthsToAdd).withDayOfMonth(1)
